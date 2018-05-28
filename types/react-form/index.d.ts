@@ -1,186 +1,133 @@
-// Type definitions for react-form 2.12
+// Type definitions for react-form 3.5.3
 // Project: https://github.com/tannerlinsley/react-form#readme
-// Definitions by: Cameron McAteer <https://github.com/cameron-mcateer>
+// Definitions by: Cameron McAteer <https://github.com/cameron-mcateer>,
+//                 Rafal2228 <https://github.com/rafal2228>
 // Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
-// TypeScript Version: 2.6
+// TypeScript Version: 2.8
 
 import * as React from 'react';
 
-// Helper Types
-export type FormValue = any;
-export type FormError = string | undefined;
 export interface Nested<T> {
     [key: string]: T | Nested<T>;
 }
-export type FormValues = Nested<FormValue>;
-export type Touched = Nested<boolean>;
-export interface FormErrors {
-    [key: string]: FormError;
+export type Optional<T> = T | undefined;
+
+export type FieldName = string | Array<string | number>;
+export type FieldValue = any;
+export type FormValues = Nested<FieldValue>;
+export type FormErrors = Nested<Optional<string>>;
+export type RenderFunction<T> = (props: T) => JSX.Element | boolean | null;
+
+export type ValidationResult = string | {
+    success: string;
+    waring: string;
+    error: string;
+};
+
+export interface RenderProps<InlineProps, ComponentProps> {
+    component?: React.ComponentType<ComponentProps>;
+    children?: React.ReactNode | RenderFunction<InlineProps>;
+    render?: RenderFunction<InlineProps>;
 }
-export type NestedErrors = Nested<FormErrors>;
-export type RenderReturn = JSX.Element | false | null;
+
+// Form
 
 export interface FormState {
     values: FormValues;
-    touched: Touched;
+    touched: Nested<boolean>;
     errors: FormErrors;
-    nestedErrors: NestedErrors;
-    dirty?: boolean;
-}
-
-export interface FormProps {
-    dontValidateOnMount?: boolean;
-    defaultValues?: FormValues;
-    onSubmit?(values: FormValues, submissionEvent: React.SyntheticEvent<any>, formApi: FormApi): void;
-    preSubmit?(values: FormValues, formApi: FormApi): FormValues;
-    onSubmitFailure?(errors: FormErrors, formApi: FormApi): void;
-    formDidUpdate?(formState: FormState): void;
-    preValidate?(values: FormValues): FormValues;
-    validateError?: ValidateValuesFunction;
-    validateWarning?: ValidateValuesFunction;
-    validateSuccess?: (values: FormValues, errors: FormErrors) => FormErrors;
-    asyncValidators?: {
-        [field: string]: (value: FormValue) => Promise<any>
-    };
-    dontPreventDefault?: boolean;
+    warnings: Nested<Optional<string>>;
+    successes: Nested<Optional<string>>;
+    submits: number;
+    submitted: boolean;
+    submitting: boolean;
+    asyncValidations: number;
+    validating: boolean;
+    validationFailures: boolean;
+    validationFailed: Nested<boolean>
 }
 
 export interface FormApi {
-    // State
-    values: FormValues;
-    touched: Touched;
-    errors: FormErrors;
-    warnings: FormErrors;
-    successes: FormErrors;
-    submits: number;
-    submitted: boolean;
-    asyncValidations: number;
-    validating: {[field: string]: boolean};
-    validationFailures: number;
-    validationFailed: {[field: string]: boolean};
-
-    // Methods
-    submitForm(event: React.SyntheticEvent<any>): void;
-    setValue(fieldName: string, value: any): void;
-    setAllValues(values: FormValues): void;
-    setError(field: string, error: string): void;
-    setWarning(field: string, warning: string): void;
-    setSuccess(field: string, success: string): void;
-    setTouched(field: string, touched: boolean): void;
-    setAllTouched(touches: {[field: string]: boolean}): void;
-    addValue(name: string, value: any): void;
-    removeValue(name: string, index: number): void;
-    swapValues(name: string, index1: number, index2: number): void;
-    resetAll(): void;
-    getFormState(): FormState;
-    setFormState(state: FormState): void;
+    submitForm: (event: React.SyntheticEvent<HTMLFormElement | any>) => void;
+    setValue: (fieldName: FieldName, value: any) => void;
+    setAllValues: (values: Nested<FieldValue>) => void;
+    setError: (fieldName: string, error: string) => void;
+    setWarning: (fieldName: string, warning: string) => void;
+    setSuccess: (fieldName: string, success: string) => void;
+    setTouched: (fieldName: string, touched: boolean) => void;
+    setAllTouched: () => void;
+    addValue: (fieldName: string, value: any) => void;
+    removeValue: (fieldName: string, index: number) => void;
+    swapValues: (fieldName: string, firstIndex: number, secondIndex: number) => void;
+    resetAll: () => void;
+    getFormState: () => FormState;
+    setFormState: (state: FormState) => void;
 }
 
-export type ValidateValuesFunction = (values: FormValues) => FormErrors;
+export interface FormProps extends RenderProps<FormState & FormApi, { formApi: FormState & FormApi }> {
+    pure?: boolean;
+    validateOnMount?: boolean;
+    validateOnSubmit?: boolean;
+    defaultValues?: FormValues;
+    preventDefault?: boolean;
 
-export interface FormFunctionProps extends FormProps, FormState, FormApi {}
+    onSubmit?: (values: FormValues, event: React.SyntheticEvent<React.FormHTMLAttributes<FormValues>>, formApi: FormApi) => void;
+    preSubmit?: (values: FormValues) => FormValues;
+    onSubmitFailure?: (errors: FormErrors, onSubmitError: Error, formApi: FormApi) => void;
+    onChange?: (formState: FormState, formApi: FormApi) => void;
+    validate?: (values: FormValues) => Nested<ValidationResult>;
+    preValidate?: (values: FormValues) => FormValues;
+    asyncValidate?: (values: FormValues) => Promise<Nested<ValidationResult>>;
+    getApi?: (formApi: FormApi) => void;
+}
 
 export interface FormContext {
     formApi: FormApi;
+    formState: FormState;
+    formProps: FormProps;
 }
 
-export class Form
-    extends React.Component<
-        FormProps & { children?: ((props: FormFunctionProps) => RenderReturn) | RenderReturn }
-    >
-    implements React.ChildContextProvider<FormContext> {
-        static defaultProps: FormProps;
-        static childContextTypes: {
-            formApi: React.Validator<any>
-        };
+export declare class Form extends React.Component<FormProps> implements React.ChildContextProvider<FormContext> {
+    getChildContext(): FormContext;
+}
 
-        getDefaultState(): FormState;
-        getChildContext(): FormContext;
-        componentWillMount(): void;
-        componentWillReceiveProps(nextProps: Readonly<Partial<FormProps>>, nextContext: any): void;
-        componentWillUmount(): void;
+// Field
 
-        render(): RenderReturn;
-    }
-
-export const NestedForm: React.StatelessComponent<FieldProps>;
-
-export function FormField(component: React.ComponentType<any>): React.ComponentClass<any>;
-
-// Fields
+export interface FieldState {
+    value: FieldValue;
+    error: string;
+    warning: string;
+    success: string;
+    touched: boolean;
+    fieldName: string;
+}
 
 export interface FieldApi {
-    getValue(): FormValue;
-    getError(): FormError;
-    getWarning(): FormError;
-    getSuccess(): FormError;
-    getTouched(): boolean;
-    getFieldName(): string;
-    setValue(value: FormValue): void;
-    setError(error: FormError): void;
-    setWarning(warning: FormError): void;
-    setSuccess(success: FormError): void;
-    setTouched(touched: boolean): void;
+    setValue: (value: FieldValue) => void;
+    setError: (error: string) => void;
+    setWarning: (error: string) => void;
+    setSuccess: (error: string) => void;
+    setTouched: (touched: boolean) => void;
+    addValue: (subField: FieldName, value: FieldValue) => void;
+    removeValue: (subField: FieldName, value: FieldValue) => void;
+    swapValues: (subField: FieldName, firstIndex: number, secondIndex: number) => void;
+    reset: () => void;
+    validatingField: () => void;
+    doneValidatingField: () => void;
+    validate: () => void;
+    preValidate: () => void;
+    asyncValidate: () => void;
 }
 
-export interface FieldProps {
-    field?: string | string[] | React.ReactText[] | Array<(string | React.ReactText[])>;
-    showErrors?: boolean;
-    errorBefore?: boolean;
-    isForm?: boolean;
+export interface FieldProps extends RenderProps<FieldState & FieldApi, { fieldApi: FieldState & FieldApi }> {
+    field: FieldName;
+    pure?: boolean;
+    validate?: (value: FieldValue) => ValidationResult;
+    preValidate?: (value: FieldValue) => FieldValue;
+    asyncValidate?: (value: FieldValue) => Promise<FieldValue>;
 }
 
-export type SelectOptions = Array<{
-    value: FormValue
-    label: string
-}>;
+export declare class Field extends React.Component<FieldProps> {}
 
-export interface SelectProps extends FieldProps, React.SelectHTMLAttributes<HTMLSelectElement> {
-    options: SelectOptions;
-}
+// NestedField
 
-export const Select: React.StatelessComponent<SelectProps>;
-
-export const Text: React.StatelessComponent<FieldProps & React.InputHTMLAttributes<HTMLInputElement>>;
-export const TextArea: React.StatelessComponent<FieldProps & React.TextareaHTMLAttributes<HTMLTextAreaElement>>;
-
-export interface RadioGroupContext {
-    group: FieldApi;
-}
-
-export class RadioGroup
-    extends React.Component<
-        FieldProps & { children?: ((props: FieldApi) => RenderReturn) | RenderReturn }
-    >
-    implements React.ChildContextProvider<RadioGroupContext> {
-    getChildContext(): {
-        group: FieldApi;
-    };
-}
-
-export const Radio: React.StatelessComponent<FieldProps & React.InputHTMLAttributes<HTMLInputElement> & {group: FieldApi}>;
-export const Checkbox: React.StatelessComponent<FieldProps & React.InputHTMLAttributes<HTMLInputElement>>;
-
-// Styled Fields
-
-export interface StyledProps extends FieldProps {
-    noMessage?: boolean;
-    messageBefore?: boolean;
-    touchValidation?: boolean;
-}
-
-export const StyledCheckbox: React.StatelessComponent<StyledProps & React.InputHTMLAttributes<HTMLInputElement> & {label: string}>;
-export const StyledTextArea: React.StatelessComponent<StyledProps & React.TextareaHTMLAttributes<HTMLTextAreaElement>>;
-export const StyledSelect: React.StatelessComponent<StyledProps & SelectProps & React.InputHTMLAttributes<HTMLSelectElement>>;
-export const StyledText: React.StatelessComponent<StyledProps & React.InputHTMLAttributes<HTMLInputElement>>;
-export const StyledRadio: React.StatelessComponent<StyledProps & React.InputHTMLAttributes<HTMLInputElement> & {group: FieldApi, label: string}>;
-
-export class StyledRadioGroup
-    extends React.Component<
-        StyledProps & { children?: ((props: FieldApi) => RenderReturn) | RenderReturn }
-    >
-    implements React.ChildContextProvider<RadioGroupContext> {
-    getChildContext(): {
-        group: FieldApi
-    };
-}
